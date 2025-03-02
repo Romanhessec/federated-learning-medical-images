@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aggregator-service
+  namespace: federated-learning
+spec:
+  selector:
+    app: federated-aggregator
+  ports:
+    - protocol: TCP
+      port: 8080        # the service is exposed on 8080
+      targetPort: 8080  # traffic is forwarded to this port inside the aggregator container
+  type: ClusterIP  # internal service
