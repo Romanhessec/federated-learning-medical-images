@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: federated-aggregator
+  namespace: federated-learning
+spec:
+  replicas: 1  # Single aggregator instance
+  selector:
+    matchLabels:
+      app: federated-aggregator
+  template:
+    metadata:
+      labels:
+        app: federated-aggregator
+    spec:
+      containers:
+      - name: aggregator
+        image: python:3.9
+        command: ["sleep", "infinity"]
+        ports:
+          - containerPort: 8080 

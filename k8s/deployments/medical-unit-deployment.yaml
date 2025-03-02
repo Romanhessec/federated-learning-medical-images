@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medical-unit
+  namespace: federated-learning
+spec:
+  replicas: 5  # 5 medical units
+  selector:
+    matchLabels:
+      app: medical-unit
+  template:
+    metadata:
+      labels:
+        app: medical-unit
+    spec:
+      containers:
+      - name: medical-client
+        image: python:3.9
+        command: ["sleep", "infinity"]
