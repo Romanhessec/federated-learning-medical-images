@@ -61,7 +61,7 @@ This script will:
     - Aggregator and Medical Units deployments;
     - Aggregator service;
     - **DISCLAIMER**: the deployment .yaml files and services will suffer significant changes thorough the project, this step is just for an initial kubernetes set-up standpoint;
-2. Install TFF inside Medical Units
+2. Install TFF inside Medical Units - **done**
 3. Distribute training data to the Medical Units
     - find proper datasets;
     - implement an automatic way to distribute data to the Medical Units - big data project;
@@ -70,4 +70,6 @@ This script will:
     - use gRPC to send updates from Medical Units to Aggregator;
     - use gRPC to send general model updates from Aggregator to Medical Units;
 6. Implement federated aggregation logic in Aggregator;
-
+7. Stress/Negative test
+    - find ways to network-stress the environment;
+    - distribute data unequally and test performance;
