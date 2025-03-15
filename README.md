@@ -10,17 +10,50 @@ The Kubernetes cluster will host **5 medical-units** that are supposed to locall
 
 This simulates a real-world environment where multiple medical units collaborate with each other in order to create a federated model. This project should test the functionality and fiability of this idea in a controlled, virtualized environment. 
 
-## 2. Set up Kubernetes Cluster
+## 2. Set up K3s (lighweight kubernetes)
 
-TBD if this part is needed in the README or not
+K3s is a lightweight Kubernetes distribution that includes all essential components.
 
-- `sudo kubeadm init --pod-network-cidr=10.244.0.0/16`
-- `mkdir -p $HOME/.kube`
-- `sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`
-- `sudo chown $(id -u):$(id -g) $HOME/.kube/config`
-- `kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml`
+Run the following commands to install K3s without Flannel (so we can use Calico): `curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--flannel-backend=none --disable-network-policy" sh -`
 
-Should use `scripts/restart_k8s.sh` script to deploy the kubernetes cluster and pods after host's system start-up. 
+This installs K3s and disables Flannel, allowing us to use Calico as the network plugin.
+
+Configure permissions:
+- `sudo chown $(id -u):$(id -g) /etc/rancher/k3s/k3s.yaml`
+- `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml`
+
+Make it permanent:
+- `echo 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml' >> ~/.bashrc`
+- `source ~/.bashrc`
+
+Check if K3s is running: `k3s kubectl get nodes`
+
+If the node is in `ready` state, K3s is installed successfully.
+
+Allow Calico networking: `k3s kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml`
+
+Verify that Calico is running:
+- `k3s kubectl get pods -n kube-system | grep calico`
+
+- `Disable swap (permanent) in order for kubernetes to work properly:
+- `sudo swapoff -a`
+- `sudo sed -i '/ swap / s/^/#/' /etc/fstab`
+- `sudo modprobe br_netfilter`
+- `echo 'br_netfilter' | sudo tee /etc/modules-load.d/k8s.conf`
+- `sudo tee /etc/sysctl.d/k8s.conf <<EOF
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF`
+- `sudo sysctl --system`
+
+After a system reboot, use the restart-k3s.sh script to reapply all deployments and networking: `./scripts/restart-k3s.sh`
+
+This script will:
+- restart k3s
+- ensure that federated learning namespace exist
+- reapply calico networking
+- restart CoreDNS
+- reapply deployment and services
 
 ## 3. Steps/To Do's
 
