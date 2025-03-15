@@ -15,5 +15,12 @@ spec:
     spec:
       containers:
       - name: medical-client
-        image: python:3.9
-        command: ["sleep", "infinity"]
+        image: medical-unit-image:latest
+        imagePullPolicy: IfNotPresent # ensures it uses local image if available
+        resources: # just placeholder values for now - needs evaluation later
+          requests:
+            memory: "512Mi"  # request 512MB memory
+            cpu: "250m"      # request 0.25 CPU core
+          limits:
+            memory: "1Gi"    # max 1GB memory
+            cpu: "500m"      # max 0.5 CPU core
