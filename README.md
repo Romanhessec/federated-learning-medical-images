@@ -55,7 +55,23 @@ This script will:
 - restart CoreDNS
 - reapply deployment and services
 
-## 3. Steps/To Do's
+## 3. CheXpert Dataset
+
+CheXlocalize is a radiologist-annotated segmentation dataset on chest X-rays.he dataset consists of two types of radiologist annotations 
+for the localization of 10 pathologies: pixel-level segmentations and most-representative points. Annotations were drawn on images from 
+the CheXpert validation and test sets.  The 10 pathologies of interest were Atelectasis, Cardiomegaly, Consolidation, Edema, Enlarged 
+Cardiomediastinum, Lung Lesion, Lung Opacity, Pleural Effusion, Pneumothorax, and Support Devices. 
+
+Download it from [here](https://stanfordaimi.azurewebsites.net/datasets/8cbd9ed4-2eb9-4565-affc-111cf4f7ebe2) - requires account in order to
+obtain the download link and azcopy for download. Steps:
+- `wget https://aka.ms/downloadazcopy-v10-linux -O azcopy.tar.gz`
+- `tar -xvf azcopy.tar.gz`
+- `sudo mv azcopy_linux_amd64_*/azcopy /usr/local/bin/`
+- `azcopy copy "<DOWNLOAD_LINK>" "<DESTINATION_PATH>" --recursive`
+
+The download link will be obtained from the Standford website and the path should be the root directory from git.
+
+## 4. Steps/To Do's
 
 1. Kubernetes Cluster General architecture - **done**
     - Aggregator and Medical Units deployments;
