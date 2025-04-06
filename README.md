@@ -71,6 +71,8 @@ obtain the download link and azcopy for download. Steps:
 
 The download link will be obtained from the Standford website and the path should be the root directory from git.
 
+One can use the 'preprocessing/unzip_chexpert.py' script to automatically unzip and sort the data.
+
 ## 4. Steps/To Do's
 
 1. Kubernetes Cluster General architecture - **done**
