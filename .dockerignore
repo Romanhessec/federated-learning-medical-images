@@ -1,0 +1,14 @@
+# ignore big on-disk data directories
+data/CheXpert*
+chexlocalize/
+
+# ignore outputs, CSVs, local tarballs
+output/
+*.csv
+*.tar
+
+# usual cruft
+.git
+__pycache__/
+*.pyc
+*.log

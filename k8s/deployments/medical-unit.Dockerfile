@@ -2,10 +2,29 @@ FROM python:3.9
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir tensorflow-federated numpy grpcio protobuf pandas
+# install runtime dependencies: TF, Pandas, gRPC, protobuf compiler
+RUN pip install --no-cache-dir \
+    tensorflow \
+    pandas \
+    grpcio \
+    protobuf \
+    grpcio-tools
 
-# copy tff training scripts
-# COPY train.py /app/train.py
+# copy .proto and generate Python gRPC stubs
+# TO DO
+# COPY aggregator.proto /app/
+# RUN python -m grpc_tools.protoc \
+#     -I. \
+#     --python_out=. \
+#     --grpc_python_out=. \
+#     aggregator.proto
 
-# set default command (change this later)
+# copy training 
+COPY federated_training/train_medical_unit.py /app/train.py
+
+# set defaults
+# ENV CLIENT_DATA_DIR=/data/client
+# ENV EPOCHS=3
+
+# run the trainer on container start
 CMD ["sleep", "infinity"]
