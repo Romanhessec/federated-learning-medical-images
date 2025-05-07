@@ -7,6 +7,13 @@ from tqdm import tqdm
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, split
 from pprint import pprint
+import subprocess
+
+# Set a fixed random seed for determinism
+random.seed(42)
+
+# Run rebuildOriginalDataset.py at the start
+subprocess.run(['python', 'dataset_preparation/rebuildOriginalDataset.py'], check=True)
 
 # ========== Setup Logging ==========
 logging.basicConfig(
@@ -21,8 +28,8 @@ CSV_PATH = os.path.join(BASE_DIR, "train.csv")
 CLIENT_ROOT = os.path.join(BASE_DIR, "clients")
 CONFIG_PATH = "dataset_preparation/label_config.json"
 
-# Fraction of images to process (e.g., 0.001 for 0.1%)
-IMAGES_FRACTION = 0.003
+# Fraction of patients to process (e.g., 0.001 for 0.1%, do 1 for the whole dataset)
+PATIENTS_FRACTION = 0.003
 
 # ========== Init Spark ==========
 logging.info("Starting Spark session...")
@@ -37,7 +44,10 @@ label_col = config["label"]
 distribution = config["distribution"]
 clients = list(distribution.keys())
 logging.info(f"Label of interest: '{label_col}'")
-logging.info(f"Client distribution: {distribution}")
+
+# Pretty print the client distribution
+logging.info("Client distribution:")
+pprint(distribution)
 
 # ========== Extract Patient ID ==========
 df = df.withColumn("PatientID", split(col("Path"), "/")[2])
@@ -55,8 +65,8 @@ labeled_images = [row["PatientID"] for row in labeled_images_df.collect()]
 unlabeled_images = [row["PatientID"] for row in unlabeled_images_df.collect()]
 
 # Limit the number of images based on the fraction
-labeled_images = labeled_images[:int(len(labeled_images) * IMAGES_FRACTION)]
-unlabeled_images = unlabeled_images[:int(len(unlabeled_images) * IMAGES_FRACTION)]
+labeled_images = labeled_images[:int(len(labeled_images) * PATIENTS_FRACTION)]
+unlabeled_images = unlabeled_images[:int(len(unlabeled_images) * PATIENTS_FRACTION)]
 
 # Sort the lists before pretty printing
 labeled_images = labeled_images
