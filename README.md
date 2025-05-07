@@ -73,7 +73,36 @@ The download link will be obtained from the Standford website and the path shoul
 
 One can use the 'preprocessing/unzip_chexpert.py' script to automatically unzip and sort the data.
 
-## 4. Steps/To Do's
+## 4. Dataset Preparation
+1. Prerequisites:
+    - Python `3.11.2` (since `pyspark` has some deprecated libraries that won't 
+    work after `3.12+`). 
+    [Pyenv](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation) can 
+    be used for this step
+    - `pandas`, `tqdm`, `pyspark`, `bs4` python libraries
+
+While in the root of the repo (and assuming the 400GB+ CheXpert dataset 
+folder `chexpertchestxrays-u20210408` is one level higher - but the file
+paths can be tweaked in the python scripts if inconvenient):
+
+2. `python dataset_preparation/moveToTrainAndValid.py` - this pulls 
+    the patient data into a `CheXpert-v1.0/` folder, under `train/` and 
+    `valid/` folders
+3. You can also manually move the `valid.csv` and `train.csv` files into
+    `CheXpert-v1.0/` since they are small and won't crash your file explorer
+4. Run `python dataset_preparation/datasetSplit.py` - this splits the dataset
+    under `train/` into 5 parts. It creates a `clients/` folder and, for each
+    client, will generate a `train/` and `train.csv`
+5. You may want to tweak `PATIENTS_FRACTION` or customize 
+    `dataset_preparation/label_config.json` to control how the sub-datasets
+    are skewed
+
+Before each `datasetSplit.py` run, the already split data (if it exists),
+is reconsolidated by `rebuildOriginalDataset.py` back into 
+`CheXpert-v1.0/train`, but you can also run it manually if needed, 
+it won't throw errors on empty folders.
+
+## 5. Steps/To Do's
 
 1. Kubernetes Cluster General architecture - **done**
     - Aggregator and Medical Units deployments;
