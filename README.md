@@ -90,7 +90,7 @@ paths can be tweaked in the python scripts if inconvenient):
     `valid/` folders
 3. You can also manually move the `valid.csv` and `train.csv` files into
     `CheXpert-v1.0/` since they are small and won't crash your file explorer
-4. Run `python dataset_preparation/datasetSplit.py` - this splits the dataset
+4. `python dataset_preparation/datasetSplit.py` - this splits the dataset
     under `train/` into 5 parts. It creates a `clients/` folder and, for each
     client, will generate a `train/` and `train.csv`
 5. You may want to tweak `PATIENTS_FRACTION` or customize 
