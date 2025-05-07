@@ -6,6 +6,7 @@ import logging
 from tqdm import tqdm
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, split
+from pprint import pprint
 
 # ========== Setup Logging ==========
 logging.basicConfig(
@@ -20,8 +21,8 @@ CSV_PATH = os.path.join(BASE_DIR, "train.csv")
 CLIENT_ROOT = os.path.join(BASE_DIR, "clients")
 CONFIG_PATH = "dataset_preparation/label_config.json"
 
-# Fraction of patients to process (e.g., 0.001 for 0.1%)
-PATIENT_FRACTION = 0.003
+# Fraction of images to process (e.g., 0.001 for 0.1%)
+IMAGES_FRACTION = 0.003
 
 # ========== Init Spark ==========
 logging.info("Starting Spark session...")
@@ -42,64 +43,71 @@ logging.info(f"Client distribution: {distribution}")
 df = df.withColumn("PatientID", split(col("Path"), "/")[2])
 df = df.withColumn(label_col, col(label_col).cast("int"))
 
-# ========== Filter patients by label ==========
-labeled_patients_df = df.filter(col(label_col) == 1).select("PatientID").distinct()
-unlabeled_patients_df = df.filter((col(label_col).isNull()) | (col(label_col) != 1)).select("PatientID").distinct()
+# ========== Filter images by label ==========
+labeled_images_df = df.filter(col(label_col) == 1).select("PatientID").distinct()
+unlabeled_images_df = df.filter((col(label_col).isNull()) | (col(label_col) != 1)).select("PatientID").distinct()
 
-labeled_patients = [row["PatientID"] for row in labeled_patients_df.collect()]
-unlabeled_patients = [row["PatientID"] for row in unlabeled_patients_df.collect()]
+# Ensure labeled_images_df and unlabeled_images_df are distinct
+unlabeled_images_df = unlabeled_images_df.subtract(labeled_images_df)
+labeled_images_df = labeled_images_df.subtract(unlabeled_images_df)
 
-# Limit the number of patients based on the fraction
-labeled_patients = labeled_patients[:int(len(labeled_patients) * PATIENT_FRACTION)]
-unlabeled_patients = unlabeled_patients[:int(len(unlabeled_patients) * PATIENT_FRACTION)]
+labeled_images = [row["PatientID"] for row in labeled_images_df.collect()]
+unlabeled_images = [row["PatientID"] for row in unlabeled_images_df.collect()]
 
-logging.info(f"Found {len(labeled_patients)} labeled patients and {len(unlabeled_patients)} unlabeled patients.")
+# Limit the number of images based on the fraction
+labeled_images = labeled_images[:int(len(labeled_images) * IMAGES_FRACTION)]
+unlabeled_images = unlabeled_images[:int(len(unlabeled_images) * IMAGES_FRACTION)]
+
+# Sort the lists before pretty printing
+labeled_images = labeled_images
+unlabeled_images = unlabeled_images
+
+logging.info(f"Found {len(labeled_images)} labeled images and {len(unlabeled_images)} unlabeled images.")
 
 # Shuffle
-random.shuffle(labeled_patients)
-random.shuffle(unlabeled_patients)
+random.shuffle(labeled_images)
+random.shuffle(unlabeled_images)
 
 # ========== Assign Patients to Clients ==========
-client_patients = {}
-total_labeled = len(labeled_patients)
-total_unlabeled = len(unlabeled_patients)
+client_images = {}
+total_labeled = len(labeled_images)
+total_unlabeled = len(unlabeled_images)
 
 # Equal total patients per client
 total_patients_per_client = (total_labeled + total_unlabeled) // len(clients)
 logging.info(f"Each client will receive approximately {total_patients_per_client} total patients.")
 
-# Calculate labeled and unlabeled patients per client
+# Calculate labeled and unlabeled images per client
 labeled_per_client = {client: int(distribution[client] * total_labeled) for client in clients}
-unlabeled_per_client = {client: total_patients_per_client - labeled_per_client[client] for client in clients}
+unlabeled_per_client = {client: max(0, total_patients_per_client - labeled_per_client[client]) for client in clients}
 
-# Assign labeled patients
-start = 0
+# Unified loop to assign labeled and unlabeled images
+start_labeled = 0
+start_unlabeled = 0
 for client in clients:
-    count = labeled_per_client[client]
-    client_patients[client] = labeled_patients[start:start + count]
-    start += count
-    logging.info(f"{client}: assigned {count} labeled patients.")
+    labeled_count = labeled_per_client[client]
+    unlabeled_count = unlabeled_per_client[client]
 
-# Handle any remaining labeled patients
-remaining_labeled = labeled_patients[start:]
+    # Assign labeled images
+    client_images[client] = labeled_images[start_labeled:start_labeled + labeled_count]
+    start_labeled += labeled_count
 
-# Assign unlabeled patients
-start = 0
-for client in clients:
-    count = unlabeled_per_client[client]
-    client_patients[client].extend(unlabeled_patients[start:start + count])
-    start += count
-    logging.info(f"{client}: assigned {count} unlabeled patients.")
+    # Assign unlabeled images
+    client_images[client].extend(unlabeled_images[start_unlabeled:start_unlabeled + unlabeled_count])
+    start_unlabeled += unlabeled_count
 
-# Distribute any remaining patients (labeled or unlabeled) evenly
-remaining_patients = remaining_labeled + unlabeled_patients[start:]
-random.shuffle(remaining_patients)
+    logging.info(f"{client}: assigned {labeled_count} labeled images and {unlabeled_count} unlabeled images.")
 
-for i, patient in enumerate(remaining_patients):
+# Handle any remaining images (labeled or unlabeled)
+remaining_images = labeled_images[start_labeled:] + unlabeled_images[start_unlabeled:]
+random.shuffle(remaining_images)
+
+# Distribute any remaining images (labeled or unlabeled) evenly
+for i, image in enumerate(remaining_images):
     client = clients[i % len(clients)]
-    client_patients[client].append(patient)
+    client_images[client].append(image)
 
-logging.info("Patient distribution complete.")
+logging.info("Image distribution complete.")
 
 # ========== Write to Output Folders (Move Folders) ==========
 df_pd = df.toPandas()
@@ -110,7 +118,7 @@ for client in tqdm(clients, desc="Distributing clients"):
     train_out_dir = os.path.join(output_dir, "train")
     os.makedirs(train_out_dir, exist_ok=True)
 
-    patients = set(client_patients[client])
+    patients = set(client_images[client])
     client_df = df_pd[df_pd["PatientID"].isin(patients)]
 
     # Save train.csv
