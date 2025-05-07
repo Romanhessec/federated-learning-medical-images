@@ -68,10 +68,6 @@ unlabeled_images = [row["PatientID"] for row in unlabeled_images_df.collect()]
 labeled_images = labeled_images[:int(len(labeled_images) * PATIENTS_FRACTION)]
 unlabeled_images = unlabeled_images[:int(len(unlabeled_images) * PATIENTS_FRACTION)]
 
-# Sort the lists before pretty printing
-labeled_images = labeled_images
-unlabeled_images = unlabeled_images
-
 logging.info(f"Found {len(labeled_images)} labeled images and {len(unlabeled_images)} unlabeled images.")
 
 # Shuffle
