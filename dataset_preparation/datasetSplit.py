@@ -12,8 +12,11 @@ import subprocess
 # Set a fixed random seed for determinism
 random.seed(42)
 
-# Run rebuildOriginalDataset.py at the start
-subprocess.run(['python', 'dataset_preparation/rebuildOriginalDataset.py'], check=True)
+# Run rebuildOriginalDataset.py at the start if needed
+resp = input("Do you want to run the dataset rebuild script? [y/N]: ").strip().lower()
+if resp in ("y", "yes"):
+    print("Running script…")
+    subprocess.run(['python3', 'dataset_preparation/rebuildOriginalDataset.py'], check=True)
 
 # ========== Setup Logging ==========
 logging.basicConfig(

@@ -80,6 +80,7 @@ One can use the 'preprocessing/unzip_chexpert.py' script to automatically unzip 
     [Pyenv](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation) can 
     be used for this step
     - `pandas`, `tqdm`, `pyspark`, `bs4` python libraries
+    - `openjdk-11-jdk` - can be installed with `sudo apt install openjdk-11-jdk`
 
 While in the root of the repo (and assuming the 400GB+ CheXpert dataset 
 folder `chexpertchestxrays-u20210408` is one level higher - but the file
@@ -111,7 +112,7 @@ it won't throw errors on empty folders.
 2. Install TFF inside Medical Units - **done**
 3. Distribute training data to the Medical Units
     - find proper datasets;
-    - implement an automatic way to distribute data to the Medical Units - big data project;
+    - implement an automatic way to distribute data to the Medical Units - **done**;
 4. Train a local model inside each Medical unit
 5. Implement gRPC communication between Medical Units and Aggregator
     - use gRPC to send updates from Medical Units to Aggregator;
