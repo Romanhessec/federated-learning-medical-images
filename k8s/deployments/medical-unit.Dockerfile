@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir \
 
 # copy training 
 COPY federated_training/train_medical_unit.py /app/train.py
-
+COPY federated_training/pod_recognisition.py /app/pod_recognisition.py
 # set defaults
 # ENV CLIENT_DATA_DIR=/data/client
 # ENV EPOCHS=3

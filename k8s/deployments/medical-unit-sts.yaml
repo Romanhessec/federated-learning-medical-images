@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: medical-unit
+  namespace: federated-learning
+spec:
+  serviceName: medical-unit
+  replicas: 5  # 5 medical units
+  selector:
+    matchLabels:
+      app: medical-unit
+  template:
+    metadata:
+      labels:
+        app: medical-unit
+    spec:
+      volumes:
+        - name: client-data
+          persistentVolumeClaim:
+            claimName: master-data-pvc
+      containers:
+      - name: medical-client
+        image: medical-unit-image:latest
+        imagePullPolicy: IfNotPresent # ensures it uses local image if available
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: CLIENT_DATA_ROOT
+            value: "/data/clients"
+        # mount the shared dataset here
+        volumeMounts:
+          - name: client-data
+            mountPath: /data/clients
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"

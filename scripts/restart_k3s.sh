@@ -25,18 +25,30 @@ k3s kubectl get pods -n kube-system | grep calico
 echo "🔄 Restarting CoreDNS..."
 k3s kubectl delete pod -n kube-system --selector k8s-app=kube-dns --ignore-not-found=true
 
-# reapply deployments and services
+# ensure namespace exists before any namespaced resources
 echo "🆕 Ensuring 'federated-learning' namespace exists..."
 k3s kubectl create namespace federated-learning --dry-run=client -o yaml | k3s kubectl apply -f -
 
+# apply PV + PVC 
+echo "💾 Applying PV & PVC for master dataset..."
+k3s kubectl apply -f k8s/storage/master-data-pv.yaml
+k3s kubectl apply -f k8s/storage/master-data-pvc.yaml
+
+# wait for PVC to bind
+echo "⏳ Waiting for PV to bind (master-data-pvc)…"
+k3s kubectl wait --for=condition=Bound pvc/master-data-pvc -n federated-learning --timeout=120s
+
+# remove old StatefulSet
+echo "🗑️ Removing old StatefulSet so we can recreate with the new spec…"
+k3s kubectl delete statefulset medical-unit -n federated-learning --ignore-not-found
+
+# reapply deployments and services
 echo "🔁 Reapplying deployments and services..."
 k3s kubectl apply -f k8s/deployments/ --recursive
 k3s kubectl apply -f k8s/services/ --recursive
 
-
 echo "⏳ Waiting for pods to stabilize..."
 sleep 60
-
 
 echo "✅ Done! Checking pod status..."
 k3s kubectl get pods --all-namespaces
