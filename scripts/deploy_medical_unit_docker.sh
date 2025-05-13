@@ -44,7 +44,8 @@ echo "✅ Verifying no old pods remain..."
 kubectl get pods -n $NAMESPACE
 
 echo "🚀 Deploying Medical Units to Kubernetes..."
-kubectl apply -f k8s/deployments/medical-unit-deployment.yaml
+k3s kubectl apply -f k8s/deployments/ --recursive
+k3s kubectl apply -f k8s/services/ --recursive
 
 echo "⏳ Waiting for all medical unit pods to be READY..."
 while [[ $ELAPSED_TIME -lt $MAX_WAIT_TIME ]]; do

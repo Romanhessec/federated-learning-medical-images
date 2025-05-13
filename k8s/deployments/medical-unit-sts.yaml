@@ -28,11 +28,11 @@ spec:
               fieldRef:
                 fieldPath: metadata.name
           - name: CLIENT_DATA_ROOT
-            value: "/data/clients"
+            value: "/dataset"
         # mount the shared dataset here
         volumeMounts:
           - name: client-data
-            mountPath: /data/clients
+            mountPath: /dataset
         resources:
           requests:
             memory: "512Mi"

@@ -111,7 +111,7 @@ it won't throw errors on empty folders.
     - **DISCLAIMER**: the deployment .yaml files and services will suffer significant changes thorough the project, this step is just for an initial kubernetes set-up standpoint;
 2. Install TFF inside Medical Units - **done**
 3. Distribute training data to the Medical Units
-    - find proper datasets;
+    - find proper datasets; --**done**
     - implement an automatic way to distribute data to the Medical Units - **done**;
 4. Train a local model inside each Medical unit
 5. Implement gRPC communication between Medical Units and Aggregator
