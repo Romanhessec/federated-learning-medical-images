@@ -29,14 +29,21 @@ k3s kubectl delete pod -n kube-system --selector k8s-app=kube-dns --ignore-not-f
 echo "🆕 Ensuring 'federated-learning' namespace exists..."
 k3s kubectl create namespace federated-learning --dry-run=client -o yaml | k3s kubectl apply -f -
 
-# apply PV + PVC 
+# apply PVs + PVCs
 echo "💾 Applying PV & PVC for master dataset..."
 k3s kubectl apply -f k8s/storage/master-data-pv.yaml
 k3s kubectl apply -f k8s/storage/master-data-pvc.yaml
+k3s kubectl apply -f k8s/storage/clients-data-medical-unit-pv.yaml
+k3s kubectl apply -f k8s/storage/clients-data-medical-unit-pvc.yaml
 
-# wait for PVC to bind
-echo "⏳ Waiting for PV to bind (master-data-pvc)…"
-k3s kubectl wait --for=condition=Bound pvc/master-data-pvc -n federated-learning --timeout=120s
+# wait for PVCs to bind
+echo "⏳ Waiting for PVCs to bind (master-data-pvc)…"
+k3s kubectl wait --for=condition=Bound pvc/master-data-pvc -n federated-learning --timeout=30s
+k3s kubectl wait --for=condition=Bound pvc/pvc-client-data-medical-unit-0 -n federated-learning --timeout=20s
+k3s kubectl wait --for=condition=Bound pvc/pvc-client-data-medical-unit-1 -n federated-learning --timeout=20s
+k3s kubectl wait --for=condition=Bound pvc/pvc-client-data-medical-unit-2 -n federated-learning --timeout=20s
+k3s kubectl wait --for=condition=Bound pvc/pvc-client-data-medical-unit-3 -n federated-learning --timeout=20s
+k3s kubectl wait --for=condition=Bound pvc/pvc-client-data-medical-unit-4 -n federated-learning --timeout=20s
 
 # remove old StatefulSet
 echo "🗑️ Removing old StatefulSet so we can recreate with the new spec…"

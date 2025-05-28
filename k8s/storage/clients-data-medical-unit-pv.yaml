@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-client-data-medical-unit-0
+spec:
+  storageClassName: local-path
+  capacity:
+    storage: 120Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/e/dizert/federated-learning-medical-images/CheXpert-v1.0/clients/client_0
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-client-data-medical-unit-1
+spec:
+  storageClassName: local-path
+  capacity:
+    storage: 120Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/e/dizert/federated-learning-medical-images/CheXpert-v1.0/clients/client_1
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-client-data-medical-unit-2
+spec:
+  storageClassName: local-path
+  capacity:
+    storage: 120Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/e/dizert/federated-learning-medical-images/CheXpert-v1.0/clients/client_2
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-client-data-medical-unit-3
+spec:
+  storageClassName: local-path
+  capacity:
+    storage: 120Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/e/dizert/federated-learning-medical-images/CheXpert-v1.0/clients/client_3
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-client-data-medical-unit-4
+spec:
+  storageClassName: local-path
+  capacity:
+    storage: 120Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/e/dizert/federated-learning-medical-images/CheXpert-v1.0/clients/client_4

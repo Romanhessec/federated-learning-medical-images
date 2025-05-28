@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: client-data-medical-unit-0
+  namespace: federated-learning
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 120Gi
+  volumeName: pv-client-data-medical-unit-0
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: client-data-medical-unit-1
+  namespace: federated-learning
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 120Gi
+  volumeName: pv-client-data-medical-unit-1
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: client-data-medical-unit-2
+  namespace: federated-learning
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 120Gi
+  volumeName: pv-client-data-medical-unit-2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: client-data-medical-unit-3
+  namespace: federated-learning
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 120Gi
+  volumeName: pv-client-data-medical-unit-3
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: client-data-medical-unit-4
+  namespace: federated-learning
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 120Gi
+  volumeName: pv-client-data-medical-unit-4

@@ -14,10 +14,6 @@ spec:
       labels:
         app: medical-unit
     spec:
-      volumes:
-        - name: client-data
-          persistentVolumeClaim:
-            claimName: master-data-pvc
       containers:
       - name: medical-client
         image: medical-unit-image:latest
@@ -29,7 +25,6 @@ spec:
                 fieldPath: metadata.name
           - name: CLIENT_DATA_ROOT
             value: "/dataset"
-        # mount the shared dataset here
         volumeMounts:
           - name: client-data
             mountPath: /dataset
@@ -40,3 +35,13 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
+  volumeClaimTemplates:
+  - metadata:
+      name: client-data
+    spec:
+      storageClassName: local-path
+      accessModes:
+        - ReadOnlyMany
+      resources:
+        requests:
+          storage: 120Gi
