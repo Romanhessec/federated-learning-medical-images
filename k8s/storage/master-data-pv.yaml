@@ -10,4 +10,4 @@ spec:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
   hostPath:
-    path: /data/federated-learning-medical-images/CheXpert-v1.0   # absolute host path
+    path: /mnt/e/dizert/federated-learning-medical-images/CheXpert-v1.0   # absolute host path
