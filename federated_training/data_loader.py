@@ -5,15 +5,15 @@ import pandas as pd
 # adjust
 IMAGE_SIZE = (128, 128)
 AUTOTUNE = tf.data.AUTOTUNE
+TARGET_LABEL = 'Pleural Effusion'
 
 def load_and_preprocess_image(path):
     """
     Reads an image file from `path`, decodes it (JPEG), converts to grayscale,
     resizes to IMAGE_SIZE, and normalizes pixel values to [0,1].
     """
-    image_data = tf.io.read_file(path)
-    # channels=1 for grayscale
-    image = tf.image.decode_jpeg(image_data, channels=1)
+    image = tf.io.read_file(path)  # path is a Tensor
+    image = tf.image.decode_jpeg(image, channels=1)
     # ensure the tensor has rank 3
     image.set_shape([None, None, 1])
     image = tf.image.resize(image, IMAGE_SIZE)
@@ -40,7 +40,7 @@ def make_dataset(client_path, batch_size=32, shuffle_buffer=100):
     csv_path = os.path.join(client_path, 'train.csv')
     df = pd.read_csv(csv_path)
 
-    # remove 'CheXpert-1v.0' prefix due to Kubernetes pods new file structure
+    # remove 'CheXpert-1v.0' prefix due to Kubernetes pods file structure
     df['AdjustedPath'] = df['Path'].str.replace(r'^CheXpert-v1\.0/', '', regex=True)
     image_paths = df['AdjustedPath'].apply(lambda p: os.path.join(client_path, p)).tolist()
     # label_cols = [
@@ -49,7 +49,12 @@ def make_dataset(client_path, batch_size=32, shuffle_buffer=100):
     #     'Pneumonia', 'Atelectasis', 'Pneumothorax', 'Pleural Effusion',
     #     'Pleural Other', 'Fracture', 'Support Devices'
     # ]
-    labels = df["Pneumonia"].astype('float32').values
+
+    # filter out rows without labels
+    # TBD how this will be done cleaner in the future
+    df = df[df[TARGET_LABEL].notna()]
+    df = df[df[TARGET_LABEL].isin([0.0, 1.0])] # DISCLAIMER: we don't know what to do with -1 (uncertain diagnostic) values yet
+    labels = df[TARGET_LABEL].astype('float32').values
     # labels = df[label_cols].astype('float32').values.tolist()
 
     # create TF Dataset from tensors
