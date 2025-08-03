@@ -3,7 +3,7 @@ FROM python:3.9
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends vim
+    apt-get install -y --no-install-recommends vim protobuf-compiler
     
 # install runtime dependencies: TF, Pandas, gRPC, protobuf compiler
 RUN pip install --no-cache-dir \

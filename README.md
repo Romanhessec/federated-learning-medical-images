@@ -103,7 +103,10 @@ is reconsolidated by `rebuildOriginalDataset.py` back into
 `CheXpert-v1.0/train`, but you can also run it manually if needed, 
 it won't throw errors on empty folders.
 
-## 5. Steps/To Do's
+## 5. gRPC
+1. It is recommended to go through the official gRPC [tutorial](https://grpc.io/docs/languages/python/quickstart/) first
+
+## 6. Steps/To Do's
 
 1. Kubernetes Cluster General architecture - **done**
     - Aggregator and Medical Units deployments;
@@ -112,8 +115,8 @@ it won't throw errors on empty folders.
 2. Install TFF inside Medical Units - **done**
 3. Distribute training data to the Medical Units
     - find proper datasets; --**done**
-    - implement an automatic way to distribute data to the Medical Units - **done**;
-4. Train a local model inside each Medical unit
+    - implement an automatic way to distribute data to the Medical Units - **done**
+4. Train a local model inside each Medical unit - **done**
 5. Implement gRPC communication between Medical Units and Aggregator
     - use gRPC to send updates from Medical Units to Aggregator;
     - use gRPC to send general model updates from Aggregator to Medical Units;
