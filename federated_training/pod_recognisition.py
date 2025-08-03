@@ -6,4 +6,7 @@ root = os.environ.get("CLIENT_DATA_ROOT", "/data/clients")
 client_dir = os.path.join(root, f"client_{ORD}")
 
 print(f"➡️ Loading data from {client_dir}")
-# then point your TF data loader at `client_dir`
+
+def get_client_id():
+    """Extracts the client ID from the POD_NAME environment variable."""
+    return ORD

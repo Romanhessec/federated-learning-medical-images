@@ -1,6 +1,11 @@
 import os
 import tensorflow as tf
+import grpc
+import numpy as np
+import weights_transmitting_pb2, weights_transmitting_pb2_grpc
+
 from data_loader import make_dataset
+from pod_recognisition import get_client_id
 
 def create_model():
     return tf.keras.Sequential([
@@ -9,6 +14,17 @@ def create_model():
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(1, activation="sigmoid")
     ])
+
+def convert_weights_to_proto(weights, client_id="unknown"):
+    """Convert model weights to a protobuf message."""
+    model_weights_msg = weights_transmitting_pb2.ModelWeights()
+    model_weights_msg.client_id = client_id
+    for weight in weights:
+        tensor = weights_transmitting_pb2.WeightTensor()
+        tensor.data.extend(weight.flatten().tolist())
+        tensor.shape.extend(weight.shape)
+        model_weights_msg.tensors.append(tensor)
+    return model_weights_msg
 
 root = os.environ['CLIENT_DATA_ROOT']
 client_id = os.environ['POD_NAME'].split('-')[-1]
@@ -30,10 +46,11 @@ for epoch in range(3):
 
 # grab the updated weights (or the last‐step grads)
 weights = model.get_weights()
-print(weights)
-# gradients
-# grads  = [g.numpy() for g in grads]
+client_id = get_client_id() 
+model_weights_msg = convert_weights_to_proto(weights, client_id)
 
-# serialize & send via gRPC
-#    e.g. np.savez("/tmp/update.npz", *weights)
-#    then your gRPC stub picks it up and ships to aggregator.
+# connect to the server
+channel = grpc.insecure_channel('server:50051')
+stub = weights_transmitting_pb2_grpc.SendWeights(channel)
+
+stub.TransmitWeights(model_weights_msg)

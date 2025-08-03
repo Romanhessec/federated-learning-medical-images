@@ -8,6 +8,7 @@ spec:
     app: federated-aggregator
   ports:
     - protocol: TCP
-      port: 8080        # the service is exposed on 8080
-      targetPort: 8080  # traffic is forwarded to this port inside the aggregator container
+      port: 50051        # the service is exposed on 50051 for gRPC
+      targetPort: 50051  # traffic is forwarded to this port inside the aggregator container
+      name: grpc
   type: ClusterIP  # internal service
