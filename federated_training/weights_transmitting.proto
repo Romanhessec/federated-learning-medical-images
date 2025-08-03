@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+message WeightTensor {
+    repeated float data = 1;
+    repeated int32 shape = 2;
+}
+
+message ModelWeights {
+    repeated WeightTensor weights = 1;
+}
+
+service SendWeights {
+    rpc TransmitWeights (ModelWeights) returns (google.protobuf.Empty);
+}

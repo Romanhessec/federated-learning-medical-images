@@ -15,7 +15,17 @@ spec:
     spec:
       containers:
       - name: aggregator
-        image: python:3.9
-        command: ["sleep", "infinity"]
+        image: federated-aggregator:latest
         ports:
-          - containerPort: 8080 
+          - containerPort: 50051
+            name: grpc
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m" 

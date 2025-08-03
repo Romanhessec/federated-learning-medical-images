@@ -32,7 +32,7 @@ CLIENT_ROOT = os.path.join(BASE_DIR, "clients")
 CONFIG_PATH = "dataset_preparation/label_config.json"
 
 # Fraction of patients to process (e.g., 0.001 for 0.1%, do 1 for the whole dataset)
-PATIENTS_FRACTION = 0.003
+PATIENTS_FRACTION = 0.001
 
 # ========== Init Spark ==========
 logging.info("Starting Spark session...")
