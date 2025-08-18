@@ -8,7 +8,9 @@ Lucas Lazaroiu, Gabriel-Marian Roman.
 
 The Kubernetes cluster will host **5 medical-units** that are supposed to locally train their data and send their model updates (gradients/weights) to an **aggregator** that should collect, aggregate and send back the global model. 
 
-This simulates a real-world environment where multiple medical units collaborate with each other in order to create a federated model. This project should test the functionality and fiability of this idea in a controlled, virtualized environment. 
+This simulates a real-world environment where multiple medical units collaborate with each other in order to create a federated model. This project should test the functionality and fiability of this idea in a controlled, virtualized environment.
+
+![High-level Architecture Overview](./diagrams/high_level_architecture.svg)
 
 ## 2. Set up K3s (lighweight kubernetes)
 
@@ -103,8 +105,85 @@ is reconsolidated by `rebuildOriginalDataset.py` back into
 `CheXpert-v1.0/train`, but you can also run it manually if needed, 
 it won't throw errors on empty folders.
 
-## 5. gRPC
-1. It is recommended to go through the official gRPC [tutorial](https://grpc.io/docs/languages/python/quickstart/) first
+## 5. gRPC Communication Architecture
+
+### What is gRPC?
+gRPC (Google Remote Procedure Call) is a high-performance, open-source universal RPC framework developed by Google. It uses HTTP/2 for transport, Protocol Buffers (protobuf) as the interface description language, and provides features like authentication, bidirectional streaming, flow control, blocking/non-blocking bindings, and cancellation/timeouts.
+
+### Why gRPC for Federated Learning?
+In our federated learning implementation, gRPC serves as the communication backbone between medical units (clients) and the aggregator server. Key advantages:
+
+- **Efficiency**: Protocol Buffers provide compact, fast serialization of model weights
+- **Type Safety**: Strong typing ensures data integrity across the network
+- **Reliability**: Built-in error handling, timeouts, and connection management
+- **Scalability**: Can handle multiple concurrent client connections
+
+### Our Implementation
+
+#### 1. Protocol Buffer Definition (`weights_transmitting.proto`)
+We define the data structures for transmitting model weights:
+
+```proto
+syntax = "proto3";
+
+message WeightTensor {
+    repeated float data = 1;    // Flattened weight array
+    repeated int32 shape = 2;   // Original tensor shape
+}
+
+message ModelWeights {
+    repeated WeightTensor tensors = 1;  // All model layers
+    string client_id = 2;               // Identifying client
+}
+
+service WeightsTransmission {
+    rpc TransmitWeights (ModelWeights) returns (google.protobuf.Empty);
+}
+```
+
+#### 2. Client Side (Medical Units)
+Each medical unit (`train_local.py`):
+1. Trains a local TensorFlow model on patient data
+2. Extracts model weights and converts to protobuf format
+3. Sends weights to aggregator via gRPC call
+
+```python
+# Convert TensorFlow weights to protobuf
+model_weights_msg = convert_weights_to_proto(weights, get_client_id())
+
+# Send to aggregator
+channel = grpc.insecure_channel('server:50051')
+stub = weights_transmitting_pb2_grpc.SendWeights(channel)
+stub.TransmitWeights(model_weights_msg)
+```
+
+#### 3. Server Side (Aggregator)
+The aggregator server (`aggregator_server.py`):
+1. Listens for incoming weight transmissions from medical units
+2. Collects weights from multiple clients
+3. Performs federated averaging (FedAvg algorithm - we might also try others, TBD)
+4. Distributes updated global model back to clients
+
+![gRPC Communication Architecture Overview](./diagrams/gRPC_communication_architecture.svg)
+
+### Setup Instructions
+1. Install gRPC tools: `pip install grpcio grpcio-tools`
+2. Compile the .proto file:
+   ```bash
+   python -m grpc_tools.protoc \
+     -I. \
+     --python_out=. \
+     --grpc_python_out=. \
+     weights_transmitting.proto
+   ```
+3. This generates `weights_transmitting_pb2.py` and `weights_transmitting_pb2_grpc.py`
+
+### Privacy and Security Considerations
+- **Data Privacy**: Only model weights are transmitted, never raw medical images
+- **Network Security**: Can be enhanced with TLS encryption for production
+- **Client Authentication**: Could add authentication tokens for client verification
+
+For more details, refer to the official gRPC [tutorial](https://grpc.io/docs/languages/python/quickstart/).
 
 ## 6. Steps/To Do's
 
