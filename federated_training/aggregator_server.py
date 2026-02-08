@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Federated Learning Aggregator Server - Mock Implementation
+Federated Learning Aggregator Server - FedAvg Implementation
 """
 
 import grpc
 from concurrent import futures
 import time
 import logging
+import numpy as np
+import threading
 from google.protobuf import empty_pb2
 
 import weights_transmitting_pb2
@@ -16,13 +18,157 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer):
-    def __init__(self):
-        logger.info("Mock Aggregator service initialized")
+    def __init__(self, num_clients=5, min_clients=3):
+        """
+        Initialize the aggregator service.
+        
+        Args:
+            num_clients: Total expected number of clients
+            min_clients: Minimum clients needed before aggregation
+        """
+        self.num_clients = num_clients
+        self.min_clients = min_clients
+        self.received_weights = {}  # {client_id: ModelWeights}
+        self.global_weights = None
+        self.round_number = 0
+        self.lock = threading.Lock()
+        logger.info(f"Aggregator initialized: expecting {num_clients} clients, min {min_clients}")
     
     def TransmitWeights(self, request, context):
-        """Mock implementation - just log and return empty"""
-        logger.info("Received weights from client (mock)")
+        """Receive weights from a client and trigger aggregation if ready"""
+        client_id = request.client_id
+        
+        with self.lock:
+            self.received_weights[client_id] = request
+            num_received = len(self.received_weights)
+            logger.info(f"Received weights from client '{client_id}' ({num_received}/{self.num_clients})")
+            
+            # Trigger aggregation if we have enough clients
+            if num_received >= self.min_clients:
+                logger.info(f"Threshold reached ({num_received} >= {self.min_clients}). Performing FedAvg...")
+                self.federated_averaging()
+                self.received_weights.clear()  # Reset for next round
+                self.round_number += 1
+        
         return empty_pb2.Empty()
+    
+    def federated_averaging(self):
+        """Perform federated averaging on collected weights"""
+        if not self.received_weights:
+            logger.warning("No weights to aggregate")
+            return
+        
+        num_clients = len(self.received_weights)
+        logger.info(f"Aggregating weights from {num_clients} clients")
+        
+        # Convert protobuf weights to numpy arrays
+        all_client_weights = []
+        for client_id, model_weights in self.received_weights.items():
+            client_weights_list = []
+            for tensor in model_weights.tensors:
+                # Reconstruct numpy array from flattened data and shape
+                array = np.array(tensor.data).reshape(tensor.shape)
+                client_weights_list.append(array)
+            all_client_weights.append(client_weights_list)
+            logger.info(f"  - Client '{client_id}': {len(client_weights_list)} weight tensors")
+        
+        # Perform averaging: average each layer across all clients
+        aggregated_weights = []
+        num_layers = len(all_client_weights[0])
+        
+        for layer_idx in range(num_layers):
+            # Stack weights from all clients for this layer
+            layer_weights = [client_weights[layer_idx] for client_weights in all_client_weights]
+            # Average them
+            avg_weight = np.mean(layer_weights, axis=0)
+            aggregated_weights.append(avg_weight)
+        
+        # Store global weights
+        self.global_weights = aggregated_weights
+        logger.info(f"✓ Round {self.round_number} complete: Global model updated with {num_layers} layers")
+        
+        # Log weight statistics for verification
+        for i, w in enumerate(aggregated_weights):
+            logger.info(f"  Layer {i}: shape={w.shape}, mean={w.mean():.6f}, std={w.std():.6f}")
+    
+    # Not used yet, but could be extended to support weighted averaging based on dataset sizes
+    def weighted_federated_averaging(self, dataset_sizes):
+        """
+        Perform weighted federated averaging on collected weights.
+        
+        Weights are averaged proportionally to each client's dataset size.
+        Formula: global_weight = sum(n_i * w_i) / sum(n_i)
+        
+        Args:
+            dataset_sizes: Dict mapping client_id to number of samples
+                          e.g., {'client_0': 1000, 'client_1': 1500, ...}
+        
+        This is more realistic for medical settings where hospitals have
+        different numbers of patients.
+        """
+        if not self.received_weights:
+            logger.warning("No weights to aggregate")
+            return
+        
+        num_clients = len(self.received_weights)
+        logger.info(f"Aggregating weights from {num_clients} clients (weighted by dataset size)")
+        
+        # Convert protobuf weights to numpy arrays
+        all_client_weights = []
+        client_ids = []
+        weights_per_client = []
+        
+        total_samples = 0
+        for client_id, model_weights in self.received_weights.items():
+            client_weights_list = []
+            for tensor in model_weights.tensors:
+                # Reconstruct numpy array from flattened data and shape
+                array = np.array(tensor.data).reshape(tensor.shape)
+                client_weights_list.append(array)
+            
+            all_client_weights.append(client_weights_list)
+            client_ids.append(client_id)
+            
+            # Get dataset size for this client (default to 1 if not provided)
+            num_samples = dataset_sizes.get(client_id, 1)
+            weights_per_client.append(num_samples)
+            total_samples += num_samples
+            
+            logger.info(f"  - Client '{client_id}': {len(client_weights_list)} tensors, {num_samples} samples")
+        
+        # Normalize weights to sum to 1
+        normalized_weights = [w / total_samples for w in weights_per_client]
+        logger.info(f"  Total samples: {total_samples}")
+        logger.info(f"  Normalized weights: {[f'{w:.4f}' for w in normalized_weights]}")
+        
+        # Perform weighted averaging: weighted sum for each layer
+        aggregated_weights = []
+        num_layers = len(all_client_weights[0])
+        
+        for layer_idx in range(num_layers):
+            # Weighted sum of this layer across all clients
+            weighted_layer = None
+            for client_idx, client_weights in enumerate(all_client_weights):
+                layer_weight = client_weights[layer_idx] * normalized_weights[client_idx]
+                if weighted_layer is None:
+                    weighted_layer = layer_weight
+                else:
+                    weighted_layer += layer_weight
+            
+            aggregated_weights.append(weighted_layer)
+        
+        # Store global weights
+        self.global_weights = aggregated_weights
+        logger.info(f"✓ Round {self.round_number} complete: Global model updated with {num_layers} layers (weighted)")
+        
+        # Log weight statistics for verification
+        for i, w in enumerate(aggregated_weights):
+            logger.info(f"  Layer {i}: shape={w.shape}, mean={w.mean():.6f}, std={w.std():.6f}")
+    
+    def get_global_weights(self):
+        """Return the current global model weights (for future use)"""
+        with self.lock:
+            return self.global_weights
 
 def serve():
     """Start the gRPC server"""
