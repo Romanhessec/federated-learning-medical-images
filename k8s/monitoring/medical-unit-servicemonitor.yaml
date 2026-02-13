@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: medical-unit-monitor
+  namespace: federated-learning
+  labels:
+    app: medical-unit
+    release: kube-prometheus-stack   # ensures Prometheus operator picks this up
+spec:
+  selector:
+    matchLabels:
+      app: medical-unit
+  namespaceSelector:
+    matchNames:
+      - federated-learning
+  endpoints:
+    - port: metrics              # matches the named port in medical-unit-service.yaml
+      interval: 15s
+      path: /metrics

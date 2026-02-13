@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: aggregator-monitor
+  namespace: federated-learning
+  labels:
+    app: federated-aggregator
+    release: kube-prometheus-stack   # ensures Prometheus operator picks this up
+spec:
+  selector:
+    matchLabels:
+      app: federated-aggregator
+  namespaceSelector:
+    matchNames:
+      - federated-learning
+  endpoints:
+    - port: metrics              # matches the named port in aggregator-service.yaml
+      interval: 15s
+      path: /metrics
