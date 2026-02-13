@@ -13,7 +13,8 @@ RUN pip install --no-cache-dir \
     numpy \
     grpcio \
     grpcio-tools \
-    protobuf
+    protobuf \
+    prometheus_client
 
 # Copy gRPC proto files and generated Python files
 COPY federated_training/weights_transmitting.proto /app/
@@ -29,8 +30,9 @@ RUN python -m grpc_tools.protoc \
     --grpc_python_out=. \
     weights_transmitting.proto
 
-# Expose gRPC port
+# Expose gRPC port and Prometheus metrics port
 EXPOSE 50051
+EXPOSE 8000
 
 # run the trainer on container start
 CMD ["sleep", "infinity"]

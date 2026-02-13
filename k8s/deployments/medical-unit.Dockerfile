@@ -5,13 +5,14 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends vim protobuf-compiler
     
-# install runtime dependencies: TF, Pandas, gRPC, protobuf compiler
+# install runtime dependencies: TF, Pandas, gRPC, protobuf compiler, Prometheus
 RUN pip install --no-cache-dir \
     tensorflow \
     pandas \
     grpcio \
     protobuf \
-    grpcio-tools
+    grpcio-tools \
+    prometheus_client
 
 # copy .proto and generate Python gRPC stubs
 # TO DO
@@ -29,6 +30,9 @@ COPY federated_training/data_loader.py /app/data_loader.py
 # set defaults
 # ENV CLIENT_DATA_DIR=/data/client
 # ENV EPOCHS=3
+
+# Expose Prometheus metrics port
+EXPOSE 8000
 
 # run the trainer on container start
 CMD ["sleep", "infinity"]
