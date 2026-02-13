@@ -4,9 +4,6 @@ import logging
 import tensorflow as tf
 import grpc
 import numpy as np
-from prometheus_client import (
-    Counter, Gauge, Histogram, start_http_server
-)
 
 import weights_transmitting_pb2, weights_transmitting_pb2_grpc
 
@@ -16,7 +13,32 @@ from pod_recognisition import get_client_id
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ========== Prometheus Metrics ==========
+# ========== Prometheus Metrics (optional) ==========
+# If prometheus_client is not installed, all metric objects become no-ops
+# so training runs identically — just without /metrics export.
+
+try:
+    from prometheus_client import Counter, Gauge, Histogram, start_http_server
+    METRICS_ENABLED = True
+except ImportError:
+    METRICS_ENABLED = False
+    logger.warning("prometheus_client not installed — metrics disabled")
+
+    class _NoOpMetric:
+        """Drop-in silent replacement for any Prometheus metric."""
+        def inc(self, *a, **kw): pass
+        def set(self, *a, **kw): pass
+        def observe(self, *a, **kw): pass
+        def labels(self, **kw): return self
+        def time(self):
+            import contextlib
+            return contextlib.nullcontext()
+
+    def _noop_factory(*args, **kwargs):
+        return _NoOpMetric()
+
+    Counter = Gauge = Histogram = _noop_factory
+    def start_http_server(*a, **kw): pass
 
 # Training progress
 FL_TRAINING_LOSS = Gauge(
@@ -75,7 +97,10 @@ FL_WEIGHT_PAYLOAD_BYTES = Gauge(
 # ========== Start Prometheus metrics server ==========
 metrics_port = 8000
 start_http_server(metrics_port)
-logger.info(f"Prometheus metrics server started on :{metrics_port}/metrics")
+if METRICS_ENABLED:
+    logger.info(f"Prometheus metrics server started on :{metrics_port}/metrics")
+else:
+    logger.info("Running without Prometheus metrics (prometheus_client not installed)")
 
 # ========== Model Definition ==========
 

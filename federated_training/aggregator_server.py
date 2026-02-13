@@ -10,17 +10,40 @@ import logging
 import numpy as np
 import threading
 from google.protobuf import empty_pb2
-from prometheus_client import (
-    Counter, Gauge, Histogram, start_http_server
-)
-
 import weights_transmitting_pb2
 import weights_transmitting_pb2_grpc
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ========== Prometheus Metrics ==========
+# ========== Prometheus Metrics (optional) ==========
+# If prometheus_client is not installed, all metric objects become no-ops
+# so the server runs identically — just without /metrics export.
+
+try:
+    from prometheus_client import Counter, Gauge, Histogram, start_http_server
+    METRICS_ENABLED = True
+except ImportError:
+    METRICS_ENABLED = False
+    logger.warning("prometheus_client not installed — metrics disabled")
+
+    # No-op fallbacks that mirror the prometheus_client API
+    class _NoOpMetric:
+        """Drop-in silent replacement for any Prometheus metric."""
+        def inc(self, *a, **kw): pass
+        def set(self, *a, **kw): pass
+        def observe(self, *a, **kw): pass
+        def labels(self, **kw): return self
+        def time(self):
+            """Context-manager that does nothing."""
+            import contextlib
+            return contextlib.nullcontext()
+
+    def _noop_factory(*args, **kwargs):
+        return _NoOpMetric()
+
+    Counter = Gauge = Histogram = _noop_factory
+    def start_http_server(*a, **kw): pass
 
 # FL round tracking
 FL_ROUNDS_COMPLETED = Counter(
@@ -276,10 +299,13 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
 
 def serve():
     """Start the gRPC server and Prometheus metrics endpoint"""
-    # Start Prometheus metrics HTTP server on port 8000
+    # Start Prometheus metrics HTTP server on port 8000 (no-op if lib missing)
     metrics_port = 8000
     start_http_server(metrics_port)
-    logger.info(f"Prometheus metrics server started on :{metrics_port}/metrics")
+    if METRICS_ENABLED:
+        logger.info(f"Prometheus metrics server started on :{metrics_port}/metrics")
+    else:
+        logger.info("Running without Prometheus metrics (prometheus_client not installed)")
     
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     weights_transmitting_pb2_grpc.add_SendWeightsServicer_to_server(
