@@ -47,8 +47,34 @@ echo "🔁 Reapplying deployments and services..."
 k3s kubectl apply -f k8s/deployments/ --recursive
 k3s kubectl apply -f k8s/services/ --recursive
 
+# ── Monitoring stack ────────────────────────────────────────
+echo "🆕 Ensuring 'monitoring' namespace exists..."
+k3s kubectl create namespace monitoring --dry-run=client -o yaml | k3s kubectl apply -f -
+
+# Check if kube-prometheus-stack Helm release exists; if not, prompt to install
+if command -v helm &> /dev/null; then
+    RELEASE_STATUS=$(helm status kube-prometheus-stack -n monitoring --kubeconfig /etc/rancher/k3s/k3s.yaml 2>/dev/null || true)
+    if [ -z "$RELEASE_STATUS" ]; then
+        echo "⚠️  kube-prometheus-stack Helm release not found."
+        echo "   Run ./scripts/deploy_monitoring.sh to install the monitoring stack."
+    else
+        echo "✅ kube-prometheus-stack Helm release found."
+    fi
+else
+    echo "⚠️  Helm not installed. Run ./scripts/deploy_monitoring.sh to install Helm and the monitoring stack."
+fi
+
+# Reapply FL-specific monitoring resources (ServiceMonitors, alerts, dashboards)
+echo "📊 Reapplying monitoring resources (ServiceMonitors, alerts, dashboards)..."
+k3s kubectl apply -f k8s/monitoring/ --recursive
+
 echo "⏳ Waiting for pods to stabilize..."
 sleep 60
 
 echo "✅ Done! Checking pod status..."
 k3s kubectl get pods --all-namespaces
+
+# Show monitoring pod status separately for clarity
+echo ""
+echo "📊 Monitoring pods:"
+k3s kubectl get pods -n monitoring -o wide 2>/dev/null || echo "   (monitoring namespace not found — run ./scripts/deploy_monitoring.sh)"
