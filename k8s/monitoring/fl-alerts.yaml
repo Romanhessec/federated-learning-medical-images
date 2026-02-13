@@ -1,0 +1,215 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: federated-learning-alerts
+  namespace: federated-learning
+  labels:
+    release: kube-prometheus-stack   # ensures Prometheus operator picks this up
+spec:
+  groups:
+    # =============================================
+    #  Infrastructure / availability alerts
+    # =============================================
+    - name: fl-infrastructure
+      rules:
+        # Aggregator pod is unreachable
+        - alert: AggregatorDown
+          expr: up{job="aggregator-monitor"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aggregator server is down"
+            description: >-
+              The federated aggregator pod has been unreachable for over 2 minutes.
+              No weight aggregation can occur while the aggregator is offline.
+
+        # One or more medical unit pods are unreachable
+        - alert: MedicalUnitDown
+          expr: up{job="medical-unit-monitor"} == 0
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Medical unit {{ $labels.pod }} is down"
+            description: >-
+              Medical unit pod {{ $labels.pod }} has been unreachable for over
+              3 minutes. The federated round may proceed with fewer clients.
+
+        # Pod is crash-looping in the federated-learning namespace
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace="federated-learning"}[1h]) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            description: >-
+              Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has
+              restarted more than 3 times in the last hour.
+
+        # Container OOM killed
+        - alert: ContainerOOMKilled
+          expr: kube_pod_container_status_last_terminated_reason{namespace="federated-learning", reason="OOMKilled"} == 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Container {{ $labels.container }} in pod {{ $labels.pod }} was OOM killed"
+            description: >-
+              Consider increasing memory limits for this container.
+
+    # =============================================
+    #  Federated learning round alerts
+    # =============================================
+    - name: fl-rounds
+      rules:
+        # No FL round completed in the last 30 minutes
+        - alert: FederatedLearningStalled
+          expr: increase(fl_rounds_completed_total[30m]) == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No FL round completed in 30 minutes"
+            description: >-
+              Federated averaging has not been triggered in the last 30 minutes.
+              Verify that medical units are training and transmitting weights.
+
+        # Fewer clients than expected participated in the last round
+        - alert: LowClientParticipation
+          expr: fl_clients_in_last_round < 3
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Only {{ $value }} clients participated in the last FL round"
+            description: >-
+              The last aggregation round had fewer than 3 clients contributing
+              weights. This may reduce model quality due to limited data diversity.
+
+        # Aggregation is taking unusually long
+        - alert: SlowAggregation
+          expr: histogram_quantile(0.95, rate(fl_aggregation_duration_seconds_bucket[10m])) > 30
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Federated aggregation is taking over 30 seconds (p95)"
+            description: >-
+              The 95th percentile aggregation duration has exceeded 30 seconds.
+              This could indicate growing model size or resource contention.
+
+    # =============================================
+    #  Training health alerts
+    # =============================================
+    - name: fl-training
+      rules:
+        # Training loss is exploding
+        - alert: TrainingLossDiverging
+          expr: fl_training_loss > 10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Training loss diverging on {{ $labels.pod }}"
+            description: >-
+              Training loss on {{ $labels.pod }} has exceeded 10 for more than
+              5 minutes. Consider reducing the learning rate or checking data quality.
+
+        # Training loss is NaN (model has collapsed)
+        - alert: TrainingLossNaN
+          expr: fl_training_loss != fl_training_loss
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Training loss is NaN on {{ $labels.pod }}"
+            description: >-
+              The training loss on {{ $labels.pod }} is NaN, indicating the model
+              has collapsed. Immediate intervention required.
+
+        # A client is a straggler (average epoch takes over 10 minutes)
+        - alert: StragglerClient
+          expr: >-
+            histogram_quantile(0.5,
+              rate(fl_training_epoch_duration_seconds_bucket[30m])
+            ) > 600
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Client {{ $labels.pod }} is a training straggler"
+            description: >-
+              The median epoch duration on {{ $labels.pod }} exceeds 10 minutes.
+              This client may be bottlenecking the federated round.
+
+    # =============================================
+    #  gRPC communication alerts
+    # =============================================
+    - name: fl-grpc
+      rules:
+        # gRPC errors on the aggregator side
+        - alert: AggregatorGRPCErrors
+          expr: rate(fl_grpc_requests_total{status="error"}[5m]) > 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "gRPC errors detected on the aggregator"
+            description: >-
+              The aggregator is reporting gRPC processing errors.
+              Check aggregator logs for details.
+
+        # Weight upload failures from medical units
+        - alert: WeightUploadFailures
+          expr: increase(fl_weight_upload_total{status="error"}[10m]) > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Weight upload failures on {{ $labels.pod }}"
+            description: >-
+              Medical unit {{ $labels.pod }} has failed to upload weights in the
+              last 10 minutes. Check network connectivity to the aggregator.
+
+        # gRPC latency is high (p95 > 30s)
+        - alert: HighGRPCLatency
+          expr: histogram_quantile(0.95, rate(fl_grpc_request_duration_seconds_bucket[10m])) > 30
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High gRPC latency on the aggregator (p95 > 30s)"
+            description: >-
+              The 95th percentile gRPC request duration exceeds 30 seconds.
+              This may indicate network issues or resource saturation.
+
+    # =============================================
+    #  Model health alerts
+    # =============================================
+    - name: fl-model-health
+      rules:
+        # Global model weights are exploding (potential gradient explosion)
+        - alert: GlobalWeightExplosion
+          expr: abs(fl_global_weight_mean) > 100
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Global model weight mean exploding (layer {{ $labels.layer }})"
+            description: >-
+              The mean of global model weights for layer {{ $labels.layer }} has
+              exceeded 100, indicating potential gradient explosion.
+
+        # Global model weight std is near zero (potential vanishing gradients)
+        - alert: GlobalWeightVanishing
+          expr: fl_global_weight_std < 1e-7 and fl_global_weight_std > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Global model weights vanishing (layer {{ $labels.layer }})"
+            description: >-
+              The standard deviation of global weights for layer {{ $labels.layer }}
+              is near zero, which may indicate vanishing gradients.
