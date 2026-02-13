@@ -11,4 +11,8 @@ spec:
       port: 50051        # the service is exposed on 50051 for gRPC
       targetPort: 50051  # traffic is forwarded to this port inside the aggregator container
       name: grpc
+    - protocol: TCP
+      port: 8000         # Prometheus metrics scrape endpoint
+      targetPort: 8000
+      name: metrics
   type: ClusterIP  # internal service

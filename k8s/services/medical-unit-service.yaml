@@ -7,3 +7,8 @@ spec:
   clusterIP: None
   selector:
     app: medical-unit
+  ports:
+    - protocol: TCP
+      port: 8000         # Prometheus metrics scrape endpoint
+      targetPort: 8000
+      name: metrics
