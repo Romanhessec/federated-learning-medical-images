@@ -10,12 +10,84 @@ import logging
 import numpy as np
 import threading
 from google.protobuf import empty_pb2
+from prometheus_client import (
+    Counter, Gauge, Histogram, start_http_server
+)
 
 import weights_transmitting_pb2
 import weights_transmitting_pb2_grpc
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ========== Prometheus Metrics ==========
+
+# FL round tracking
+FL_ROUNDS_COMPLETED = Counter(
+    'fl_rounds_completed_total',
+    'Total number of federated learning rounds completed'
+)
+FL_ROUND_CURRENT = Gauge(
+    'fl_round_current',
+    'Current federated learning round number'
+)
+
+# Client participation
+FL_CLIENTS_REPORTED = Gauge(
+    'fl_clients_reported',
+    'Number of clients that have reported weights in the current round'
+)
+FL_CLIENTS_IN_LAST_ROUND = Gauge(
+    'fl_clients_in_last_round',
+    'Number of clients that participated in the last completed round'
+)
+FL_WEIGHTS_RECEIVED = Counter(
+    'fl_weights_received_total',
+    'Total number of weight submissions received',
+    ['client_id']
+)
+
+# Aggregation performance
+FL_AGGREGATION_DURATION = Histogram(
+    'fl_aggregation_duration_seconds',
+    'Time spent performing federated averaging',
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0]
+)
+
+# gRPC request performance
+FL_GRPC_DURATION = Histogram(
+    'fl_grpc_request_duration_seconds',
+    'Duration of gRPC TransmitWeights calls',
+    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0]
+)
+FL_GRPC_REQUESTS = Counter(
+    'fl_grpc_requests_total',
+    'Total gRPC requests received',
+    ['status']
+)
+
+# Global model weight statistics (per layer)
+FL_GLOBAL_WEIGHT_MEAN = Gauge(
+    'fl_global_weight_mean',
+    'Mean of global model weights after aggregation',
+    ['layer']
+)
+FL_GLOBAL_WEIGHT_STD = Gauge(
+    'fl_global_weight_std',
+    'Standard deviation of global model weights after aggregation',
+    ['layer']
+)
+FL_GLOBAL_MODEL_LAYERS = Gauge(
+    'fl_global_model_layers',
+    'Number of layers in the global model'
+)
+
+# Weight payload size
+FL_WEIGHT_PAYLOAD_TENSORS = Histogram(
+    'fl_weight_payload_tensors',
+    'Number of tensors in a received weight payload',
+    buckets=[1, 2, 4, 8, 16, 32, 64]
+)
 
 class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer):
     def __init__(self, num_clients=5, min_clients=3):
@@ -36,19 +108,41 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
     
     def TransmitWeights(self, request, context):
         """Receive weights from a client and trigger aggregation if ready"""
+        start_time = time.time()
         client_id = request.client_id
         
-        with self.lock:
-            self.received_weights[client_id] = request
-            num_received = len(self.received_weights)
-            logger.info(f"Received weights from client '{client_id}' ({num_received}/{self.num_clients})")
+        try:
+            with self.lock:
+                self.received_weights[client_id] = request
+                num_received = len(self.received_weights)
+                logger.info(f"Received weights from client '{client_id}' ({num_received}/{self.num_clients})")
+                
+                # Record metrics for this submission
+                FL_WEIGHTS_RECEIVED.labels(client_id=client_id).inc()
+                FL_CLIENTS_REPORTED.set(num_received)
+                FL_WEIGHT_PAYLOAD_TENSORS.observe(len(request.weights))
+                
+                # Trigger aggregation if we have enough clients
+                if num_received >= self.min_clients:
+                    logger.info(f"Threshold reached ({num_received} >= {self.min_clients}). Performing FedAvg...")
+                    FL_CLIENTS_IN_LAST_ROUND.set(num_received)
+                    
+                    with FL_AGGREGATION_DURATION.time():
+                        self.federated_averaging()
+                    
+                    FL_ROUNDS_COMPLETED.inc()
+                    self.received_weights.clear()  # Reset for next round
+                    self.round_number += 1
+                    FL_ROUND_CURRENT.set(self.round_number)
+                    FL_CLIENTS_REPORTED.set(0)
             
-            # Trigger aggregation if we have enough clients
-            if num_received >= self.min_clients:
-                logger.info(f"Threshold reached ({num_received} >= {self.min_clients}). Performing FedAvg...")
-                self.federated_averaging()
-                self.received_weights.clear()  # Reset for next round
-                self.round_number += 1
+            FL_GRPC_REQUESTS.labels(status='ok').inc()
+        except Exception as e:
+            FL_GRPC_REQUESTS.labels(status='error').inc()
+            logger.error(f"Error processing weights from '{client_id}': {e}")
+            raise
+        finally:
+            FL_GRPC_DURATION.observe(time.time() - start_time)
         
         return empty_pb2.Empty()
     
@@ -87,9 +181,14 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
         self.global_weights = aggregated_weights
         logger.info(f"✓ Round {self.round_number} complete: Global model updated with {num_layers} layers")
         
-        # Log weight statistics for verification
+        # Log weight statistics for verification and export to Prometheus
+        FL_GLOBAL_MODEL_LAYERS.set(num_layers)
         for i, w in enumerate(aggregated_weights):
-            logger.info(f"  Layer {i}: shape={w.shape}, mean={w.mean():.6f}, std={w.std():.6f}")
+            w_mean = float(w.mean())
+            w_std = float(w.std())
+            FL_GLOBAL_WEIGHT_MEAN.labels(layer=str(i)).set(w_mean)
+            FL_GLOBAL_WEIGHT_STD.labels(layer=str(i)).set(w_std)
+            logger.info(f"  Layer {i}: shape={w.shape}, mean={w_mean:.6f}, std={w_std:.6f}")
     
     # Not used yet, but could be extended to support weighted averaging based on dataset sizes
     def weighted_federated_averaging(self, dataset_sizes):
@@ -161,9 +260,14 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
         self.global_weights = aggregated_weights
         logger.info(f"✓ Round {self.round_number} complete: Global model updated with {num_layers} layers (weighted)")
         
-        # Log weight statistics for verification
+        # Log weight statistics for verification and export to Prometheus
+        FL_GLOBAL_MODEL_LAYERS.set(num_layers)
         for i, w in enumerate(aggregated_weights):
-            logger.info(f"  Layer {i}: shape={w.shape}, mean={w.mean():.6f}, std={w.std():.6f}")
+            w_mean = float(w.mean())
+            w_std = float(w.std())
+            FL_GLOBAL_WEIGHT_MEAN.labels(layer=str(i)).set(w_mean)
+            FL_GLOBAL_WEIGHT_STD.labels(layer=str(i)).set(w_std)
+            logger.info(f"  Layer {i}: shape={w.shape}, mean={w_mean:.6f}, std={w_std:.6f}")
     
     def get_global_weights(self):
         """Return the current global model weights (for future use)"""
@@ -171,7 +275,12 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
             return self.global_weights
 
 def serve():
-    """Start the gRPC server"""
+    """Start the gRPC server and Prometheus metrics endpoint"""
+    # Start Prometheus metrics HTTP server on port 8000
+    metrics_port = 8000
+    start_http_server(metrics_port)
+    logger.info(f"Prometheus metrics server started on :{metrics_port}/metrics")
+    
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     weights_transmitting_pb2_grpc.add_SendWeightsServicer_to_server(
         WeightsAggregatorService(), server
@@ -180,7 +289,7 @@ def serve():
     listen_addr = '[::]:50051'
     server.add_insecure_port(listen_addr)
     
-    logger.info(f"Starting mock aggregator server on {listen_addr}")
+    logger.info(f"Starting aggregator server on {listen_addr}")
     server.start()
     
     try:
