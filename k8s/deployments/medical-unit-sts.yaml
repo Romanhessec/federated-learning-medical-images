@@ -22,6 +22,9 @@ spec:
       - name: medical-client
         image: medical-unit-image:latest
         imagePullPolicy: IfNotPresent # ensures it uses local image if available
+        ports:
+          - containerPort: 8000
+            name: metrics
         env:
           - name: POD_NAME
             valueFrom:

@@ -19,6 +19,8 @@ spec:
         ports:
           - containerPort: 50051
             name: grpc
+          - containerPort: 8000
+            name: metrics
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
