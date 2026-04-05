@@ -13,6 +13,10 @@ spec:
       labels:
         app: federated-aggregator
     spec:
+      volumes:
+        - name: client-data
+          persistentVolumeClaim:
+            claimName: master-data-pvc
       containers:
       - name: aggregator
         image: federated-aggregator:latest
@@ -20,6 +24,9 @@ spec:
         ports:
           - containerPort: 50051
             name: grpc
+        volumeMounts:
+          - name: client-data
+            mountPath: /dataset
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
