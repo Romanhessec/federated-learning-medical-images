@@ -13,14 +13,10 @@ RUN pip install --no-cache-dir \
     protobuf \
     grpcio-tools
 
-# copy .proto and generate Python gRPC stubs
-# TO DO
-# COPY aggregator.proto /app/
-# RUN python -m grpc_tools.protoc \
-#     -I. \
-#     --python_out=. \
-#     --grpc_python_out=. \
-#     aggregator.proto
+# copy .proto and pre-generated gRPC stubs
+COPY federated_training/weights_transmitting.proto /app/weights_transmitting.proto
+COPY federated_training/weights_transmitting_pb2.py /app/weights_transmitting_pb2.py
+COPY federated_training/weights_transmitting_pb2_grpc.py /app/weights_transmitting_pb2_grpc.py
 
 # copy scripts
 COPY federated_training/pod_recognisition.py /app/pod_recognisition.py

@@ -12,6 +12,11 @@ message ModelWeights {
     string client_id = 2;
 }
 
+message GetWeightsRequest {
+    int32 round_number = 1;
+}
+
 service SendWeights {
     rpc TransmitWeights (ModelWeights) returns (google.protobuf.Empty);
+    rpc GetGlobalWeights (GetWeightsRequest) returns (ModelWeights);
 }

@@ -24,7 +24,7 @@ COPY federated_training/weights_transmitting_pb2_grpc.py /app/
 COPY federated_training/aggregator_server.py /app/
 
 # Generate gRPC files (in case they're not present)
-RUN python -m grpc_tools.protoc \
+RUN python3 -m grpc_tools.protoc \
     --python_out=. \
     --grpc_python_out=. \
     weights_transmitting.proto

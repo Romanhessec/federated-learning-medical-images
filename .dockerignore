@@ -1,14 +1,20 @@
 # ignore big on-disk data directories
-data/CheXpert*
+CheXpert-v1.0/
 chexlocalize/
+chexpertchestxrays-u20210408/
 
 # ignore outputs, CSVs, local tarballs
 output/
 *.csv
 *.tar
 
+# ignore preprocessing and dataset prep
+preprocessing/
+dataset_preparation/
+
 # usual cruft
 .git
 __pycache__/
 *.pyc
 *.log
+.gitignore
