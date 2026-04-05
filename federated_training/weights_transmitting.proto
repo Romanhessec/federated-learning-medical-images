@@ -8,7 +8,7 @@ message WeightTensor {
 }
 
 message ModelWeights {
-    repeated WeightTensor weights = 1;
+    repeated WeightTensor tensors = 1;
     string client_id = 2;
 }
 

@@ -67,7 +67,7 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
             client_weights_list = []
             for tensor in model_weights.tensors:
                 # Reconstruct numpy array from flattened data and shape
-                array = np.array(tensor.data).reshape(tensor.shape)
+                array = np.array(tensor.data, dtype=np.float32).reshape(tensor.shape)
                 client_weights_list.append(array)
             all_client_weights.append(client_weights_list)
             logger.info(f"  - Client '{client_id}': {len(client_weights_list)} weight tensors")

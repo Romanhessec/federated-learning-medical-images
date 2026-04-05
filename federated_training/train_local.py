@@ -36,7 +36,7 @@ def proto_to_weights(msg):
     """Convert protobuf ModelWeights back to numpy arrays."""
     weights = []
     for tensor in msg.tensors:
-        array = np.array(tensor.data).reshape(tensor.shape)
+        array = np.array(tensor.data, dtype=np.float32).reshape(tensor.shape)
         weights.append(array)
     return weights
 
