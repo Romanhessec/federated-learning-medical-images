@@ -5,7 +5,7 @@ metadata:
   namespace: federated-learning
 spec:
   serviceName: medical-unit
-  replicas: 5  # 5 medical units
+  replicas: 2 # 2 medical units
   selector:
     matchLabels:
       app: medical-unit

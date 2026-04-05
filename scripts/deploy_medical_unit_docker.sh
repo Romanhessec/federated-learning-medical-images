@@ -55,7 +55,12 @@ while [[ $ELAPSED_TIME -lt $MAX_WAIT_TIME ]]; do
         -o=jsonpath="{.items[*].status.conditions[?(@.type=='Ready')].status}" \
         | grep -o "True" | wc -l)
 
-    TOTAL_PODS=$(kubectl get deployment medical-unit -n $NAMESPACE -o jsonpath="{.spec.replicas}")
+    # Get total replicas from StatefulSet instead of Deployment
+    TOTAL_PODS=$(kubectl get statefulset medical-unit -n $NAMESPACE -o jsonpath="{.spec.replicas}" 2>/dev/null)
+
+    if [[ -z "$TOTAL_PODS" ]]; then
+        TOTAL_PODS=5  # Default to 5 if StatefulSet not found yet
+    fi
 
     echo "🔍 Ready Pods: $READY_PODS / $TOTAL_PODS"
 

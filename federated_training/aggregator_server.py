@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer):
-    def __init__(self, num_clients=5, min_clients=3):
+    def __init__(self, num_clients=5, min_clients=2):
         """
         Initialize the aggregator service.
         
@@ -169,12 +169,32 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
         """Return the current global model weights (for future use)"""
         with self.lock:
             return self.global_weights
+    
+    def GetGlobalWeights(self, request, context):
+        """Send global weights to a requesting client"""
+        with self.lock:
+            if self.global_weights is None:
+                logger.warning("No global weights available yet")
+                return weights_transmitting_pb2.ModelWeights()  # Empty message
+            
+            # Convert numpy arrays back to protobuf
+            msg = weights_transmitting_pb2.ModelWeights()
+            msg.client_id = "global"
+            for w in self.global_weights:
+                tensor = weights_transmitting_pb2.WeightTensor()
+                tensor.data.extend(w.flatten().tolist())
+                tensor.shape.extend(w.shape)
+                msg.tensors.append(tensor)
+            
+            logger.info(f"✓ Sending global weights (round {self.round_number}) to client")
+            return msg
 
 def serve():
     """Start the gRPC server"""
+    # For minimal testing with 2 pods, set min_clients=2
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     weights_transmitting_pb2_grpc.add_SendWeightsServicer_to_server(
-        WeightsAggregatorService(), server
+        WeightsAggregatorService(num_clients=5, min_clients=2), server
     )
     
     listen_addr = '[::]:50051'
