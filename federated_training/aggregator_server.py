@@ -9,6 +9,8 @@ import time
 import logging
 import numpy as np
 import threading
+import pickle
+import os
 from google.protobuf import empty_pb2
 
 import weights_transmitting_pb2
@@ -32,6 +34,7 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
         self.global_weights = None
         self.round_number = 0
         self.lock = threading.Lock()
+        self.weights_output_dir = '/dataset'  # Shared PVC mount
         logger.info(f"Aggregator initialized: expecting {num_clients} clients, min {min_clients}")
     
     def TransmitWeights(self, request, context):
@@ -90,6 +93,9 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
         # Log weight statistics for verification
         for i, w in enumerate(aggregated_weights):
             logger.info(f"  Layer {i}: shape={w.shape}, mean={w.mean():.6f}, std={w.std():.6f}")
+        
+        # Save weights to disk for evaluation
+        self.save_global_weights()
     
     # Not used yet, but could be extended to support weighted averaging based on dataset sizes
     def weighted_federated_averaging(self, dataset_sizes):
@@ -188,6 +194,20 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
             
             logger.info(f"✓ Sending global weights (round {self.round_number}) to client")
             return msg
+    
+    def save_global_weights(self):
+        """Save global weights to disk for evaluation"""
+        if self.global_weights is None:
+            logger.warning("No global weights to save")
+            return
+        
+        try:
+            output_path = os.path.join(self.weights_output_dir, 'global_model_weights.pkl')
+            with open(output_path, 'wb') as f:
+                pickle.dump(self.global_weights, f)
+            logger.info(f"✓ Saved global weights to {output_path}")
+        except Exception as e:
+            logger.error(f"Failed to save weights: {e}")
 
 def serve():
     """Start the gRPC server"""
