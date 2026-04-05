@@ -40,7 +40,7 @@ k3s kubectl apply -f k8s/deployments/medical-unit-sts.yaml -n federated-learning
 k3s kubectl apply -f k8s/services/medical-unit-service.yaml -n federated-learning
 
 # Wait for medical units
-TOTAL_PODS=2  # Change to 5 for full deployment
+TOTAL_PODS=5  # Change to 5 for full deployment
 ELAPSED=0
 MAX_WAIT=300
 
