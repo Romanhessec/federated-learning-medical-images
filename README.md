@@ -185,7 +185,49 @@ The aggregator server (`aggregator_server.py`):
 
 For more details, refer to the official gRPC [tutorial](https://grpc.io/docs/languages/python/quickstart/).
 
-## 6. Steps/To Do's
+## 6. Deployment and Testing
+
+### Quick Start with deploy_all.sh
+
+The `scripts/deploy_all.sh` script automates the entire deployment process:
+
+```bash
+cd /data/federated-learning-medical-images
+./scripts/deploy_all.sh
+```
+
+This script performs the following steps:
+1. Builds the Aggregator Docker image (`federated-aggregator:latest`)
+2. Builds the Medical Unit Docker image (`federated-medical-unit:latest`)
+3. Imports images into k3s containerd registry
+4. Creates the `federated-learning` Kubernetes namespace
+5. Deploys PersistentVolume and PersistentVolumeClaim for shared storage
+6. Deploys the Aggregator pod
+7. Deploys 5 Medical Unit pods as a StatefulSet (stable DNS: medical-unit-0 through medical-unit-4)
+8. Creates Services for pod-to-pod communication
+
+The script sets environment variables for configurable aggregation:
+- `NUM_CLIENTS=5`: Total number of clients in federated training
+- `MIN_CLIENTS=2`: Minimum clients needed to trigger aggregation
+
+### Running Model Evaluation
+
+After training completes, evaluate the global model on the CheXpert validation set:
+
+```bash
+cd /data/federated-learning-medical-images/federated_training
+python3 evaluate_model.py
+```
+
+This script:
+- Loads the global model weights from `/dataset/global_model_weights.pkl` (saved during federated training)
+- Creates a validation dataset from CheXpert validation set (234 images)
+- Runs inference on all images with batch processing
+- Computes metrics: Accuracy, AUC (ROC), Sensitivity, Specificity
+- Generates confusion matrix
+- Compares model performance against random baseline
+
+## 7. Steps/To Do's
 
 1. Kubernetes Cluster General architecture - **done**
     - Aggregator and Medical Units deployments;
