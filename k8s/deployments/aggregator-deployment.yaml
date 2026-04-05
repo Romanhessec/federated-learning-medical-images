@@ -16,6 +16,7 @@ spec:
       containers:
       - name: aggregator
         image: federated-aggregator:latest
+        imagePullPolicy: IfNotPresent
         ports:
           - containerPort: 50051
             name: grpc
