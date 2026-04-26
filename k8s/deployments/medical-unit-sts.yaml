@@ -34,6 +34,8 @@ spec:
             value: "8"
           - name: SHUFFLE_BUFFER
             value: "32"
+          - name: TF_FORCE_GPU_ALLOW_GROWTH
+            value: "true"
         # mount the shared dataset here
         volumeMounts:
           - name: client-data
