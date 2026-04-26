@@ -29,6 +29,10 @@ spec:
                 fieldPath: metadata.name
           - name: CLIENT_DATA_ROOT
             value: "/dataset"
+          - name: LOCAL_BATCH_SIZE
+            value: "8"
+          - name: SHUFFLE_BUFFER
+            value: "32"
         # mount the shared dataset here
         volumeMounts:
           - name: client-data

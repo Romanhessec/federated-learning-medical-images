@@ -41,17 +41,25 @@ def proto_to_weights(msg):
     return weights
 
 # Configuration
-NUM_ROUNDS = 3
-EPOCHS_PER_ROUND = 2
+# Updated for real-scale test: 12 rounds x 4 epochs = 48 total epochs per client
+NUM_ROUNDS = 12
+EPOCHS_PER_ROUND = 4
+LOCAL_BATCH_SIZE = int(os.environ.get('LOCAL_BATCH_SIZE', '8'))
+SHUFFLE_BUFFER = int(os.environ.get('SHUFFLE_BUFFER', '32'))
 AGGREGATOR_ADDRESS = 'aggregator-service:50051'
 
 # Setup
 root = os.environ['CLIENT_DATA_ROOT']
 pod_name = os.environ['POD_NAME']
 client_id = pod_name.split('-')[-1]
-ds = make_dataset(f"{root}/clients/client_{client_id}")
+ds = make_dataset(
+    f"{root}/clients/client_{client_id}",
+    batch_size=LOCAL_BATCH_SIZE,
+    shuffle_buffer=SHUFFLE_BUFFER,
+)
 
 logger.info(f"Client {client_id} starting federated training for {NUM_ROUNDS} rounds")
+logger.info(f"Training config: batch_size={LOCAL_BATCH_SIZE}, shuffle_buffer={SHUFFLE_BUFFER}")
 
 # Initialize model
 model = create_model()

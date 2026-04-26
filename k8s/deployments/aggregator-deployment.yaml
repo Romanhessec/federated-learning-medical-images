@@ -30,6 +30,10 @@ spec:
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
+        - name: NUM_CLIENTS
+          value: "5"
+        - name: MIN_CLIENTS
+          value: "5"
         resources:
           requests:
             memory: "512Mi"
