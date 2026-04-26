@@ -18,6 +18,7 @@ spec:
         - name: client-data
           persistentVolumeClaim:
             claimName: master-data-pvc
+      runtimeClassName: nvidia
       containers:
       - name: medical-client
         image: medical-unit-image:latest
@@ -41,7 +42,9 @@ spec:
           requests:
             memory: "1Gi"
             cpu: "500m"
+            nvidia.com/gpu: "1"
           limits:
             memory: "2Gi"
             cpu: "1000m"
+            nvidia.com/gpu: "1"
 
