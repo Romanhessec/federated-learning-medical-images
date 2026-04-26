@@ -211,10 +211,14 @@ class WeightsAggregatorService(weights_transmitting_pb2_grpc.SendWeightsServicer
 
 def serve():
     """Start the gRPC server"""
-    # For minimal testing with 2 pods, set min_clients=2
+    # Read config from environment; default to full synchronous (min_clients=5)
+    num_clients = int(os.environ.get('NUM_CLIENTS', '5'))
+    min_clients = int(os.environ.get('MIN_CLIENTS', '5'))
+    logger.info(f"Aggregator config: num_clients={num_clients}, min_clients={min_clients}")
+    
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     weights_transmitting_pb2_grpc.add_SendWeightsServicer_to_server(
-        WeightsAggregatorService(num_clients=5, min_clients=2), server
+        WeightsAggregatorService(num_clients=num_clients, min_clients=min_clients), server
     )
     
     listen_addr = '[::]:50051'
